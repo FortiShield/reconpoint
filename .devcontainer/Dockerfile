@@ -8,7 +8,7 @@
 # ============================================
 # Base Stage: Core dependencies
 # ============================================
-FROM python:3.10-slim as base
+FROM python:3.10-slim AS base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -59,7 +59,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     \
     # Utilities
-    netcat \
+    netcat-openbsd \
     vim \
     nano \
     less \
@@ -70,7 +70,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ============================================
 # Development Stage: Dev tools & IDE support
 # ============================================
-FROM base as dev
+FROM base AS dev
 
 # Create non-root user for development
 RUN groupadd -r app && useradd -r -g app app
