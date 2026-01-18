@@ -26,6 +26,46 @@ Please report [bugs here on GitHub Issues section][1].
 ## Feature requests
 We welcome feature requests. But please take a moment to find out whether your idea fits with the original idea behind reEngine. It's up to you to make a strong case to convince the project's developers of the merits of this feature. Please provide as much detail and context as possible.
 
+## Code Style
+
+To maintain code quality and consistency, we use the following tools:
+
+- **Black**: For code formatting
+- **isort**: For import sorting
+- **flake8**: For linting
+- **mypy**: For type checking
+
+### Running Code Quality Checks
+
+You can run the code quality checks using the Makefile:
+
+```bash
+make format    # Format code with black and isort
+make lint      # Run flake8 linting
+make type-check # Run mypy type checking
+```
+
+Or install the tools and run them directly:
+
+```bash
+pip install black isort flake8 mypy
+black web/
+isort web/
+flake8 web/
+mypy web/
+```
+
+### Pre-commit Hooks
+
+We recommend using pre-commit hooks to automatically run these checks before committing:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+This will run the checks on every commit.
+
 ## Pull requests
 Pull requests with a bug fix, improvements, new features are welcome and very much appreciated.
 
