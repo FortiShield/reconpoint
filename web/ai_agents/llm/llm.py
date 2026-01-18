@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, List, Optional
 from ..config.constants import DEFAULT_MODEL
 from .config import ModelConfig
 from .memory import ConversationMemory
+from .router import ModelRouter
 
 if TYPE_CHECKING:
     from ..knowledge import RAGEngine
@@ -46,6 +47,7 @@ class LLM:
         self.model = model or DEFAULT_MODEL
         self.config = config or ModelConfig()
         self.rag_engine = rag_engine
+        self.router = ModelRouter(default_tier="reasoning")
         self.memory = ConversationMemory(max_tokens=self.config.max_context_tokens)
 
         # Ensure litellm is available
@@ -129,6 +131,7 @@ class LLM:
         messages: List[dict],
         tools: Optional[List["Tool"]] = None,
         stream: bool = False,
+        tier: str = "reasoning",
     ) -> LLMResponse:
         """
         Generate a response from the LLM.
@@ -157,10 +160,13 @@ class LLM:
             llm_tools = [tool.to_llm_format() for tool in tools if tool.enabled]
 
         try:
-            # Build call kwargs - only pass non-default optional params
-            # to avoid conflicts (e.g., Claude doesn't allow temperature + top_p together)
+            # Determine model via router if not explicitly pinned
+            target_model = self.model
+            if self.model == DEFAULT_MODEL:
+                target_model = self.router.get_model(tier=tier)
+
             call_kwargs = {
-                "model": self.model,
+                "model": target_model,
                 "messages": llm_messages,
                 "temperature": self.config.temperature,
                 "max_tokens": self.config.max_tokens,
@@ -182,7 +188,12 @@ class LLM:
             async def _call():
                 return await self._litellm.acompletion(**call_kwargs)
 
-            response = await self._retry_with_backoff(_call)
+            try:
+                response = await self._retry_with_backoff(_call)
+                self.router.report_success(target_model)
+            except Exception as e:
+                self.router.report_failure(target_model)
+                raise
 
             # Parse response
             choice = response.choices[0]
@@ -331,6 +342,7 @@ class LLM:
                     },
                     {"role": "user", "content": prompt},
                 ],
+                model=self.router.get_model(tier="summary"),
                 temperature=0.3,  # Lower temperature for consistent summaries
                 max_tokens=1000,  # Summaries should be concise
             )

@@ -202,79 +202,90 @@ class CrewOrchestrator:
                         }
                     )
 
-                    for tc in response.tool_calls:
+                    async def execute_tool_call(tc):
                         tc_name = get_tc_name(tc)
                         tc_args = get_tc_args(tc)
                         tc_id = get_tc_id(tc)
 
                         update = {"phase": "tool_call", "tool": tc_name, "args": tc_args}
                         await self.broadcast(update)
-                        yield update
+                        # We don't yield here because multiple workers might yield at once
+                        # the caller handles the main loop yield
 
                         tool = next((t for t in crew_tools if t.name == tc_name), None)
-                        if tool:
-                            try:
-                                result = await tool.execute(tc_args, self.runtime)
-
-                                update = {
-                                    "phase": "tool_result",
-                                    "tool": tc_name,
-                                    "result": result,
-                                }
-                                await self.broadcast(update)
-                                yield update
-
-                                self._messages.append(
-                                    {
-                                        "role": "tool",
-                                        "tool_call_id": tc_id,
-                                        "content": str(result),
-                                    }
-                                )
-
-                                if tc_name == "finish":
-                                    # Check if finish tool used tokens for synthesis
-                                    if (
-                                        hasattr(self.pool, "finish_tokens")
-                                        and self.pool.finish_tokens > 0
-                                    ):
-                                        update = {
-                                            "phase": "tokens",
-                                            "tokens": self.pool.finish_tokens,
-                                        }
-                                        await self.broadcast(update)
-                                        yield update
-                                        self.pool.finish_tokens = (
-                                            0  # Reset for next use
-                                        )
-                                    final_report = result
-                                    break  # Exit immediately after finish
-
-                            except Exception as e:
-                                error_msg = f"Error: {e}"
-                                update = {
-                                    "phase": "tool_result",
-                                    "tool": tc_name,
-                                    "result": error_msg,
-                                }
-                                await self.broadcast(update)
-                                yield update
-                                self._messages.append(
-                                    {
-                                        "role": "tool",
-                                        "tool_call_id": tc_id,
-                                        "content": error_msg,
-                                    }
-                                )
-                        else:
+                        if not tool:
                             error_msg = f"Unknown tool: {tc_name}"
-                            self._messages.append(
-                                {
-                                    "role": "tool",
-                                    "tool_call_id": tc_id,
-                                    "content": error_msg,
+                            return {
+                                "role": "tool",
+                                "tool_call_id": tc_id,
+                                "content": error_msg,
+                                "tool_name": tc_name,
+                                "error": True
+                            }
+
+                        try:
+                            # If it's the finish tool, we might need special handling
+                            # but usually we want to execute it last or if it's the only one.
+                            # For now, let's just run it.
+                            result = await tool.execute(tc_args, self.runtime)
+                            
+                            update = {
+                                "phase": "tool_result",
+                                "tool": tc_name,
+                                "result": result,
+                            }
+                            await self.broadcast(update)
+                            
+                            return {
+                                "role": "tool",
+                                "tool_call_id": tc_id,
+                                "content": str(result),
+                                "tool_name": tc_name
+                            }
+
+                        except Exception as e:
+                            error_msg = f"Error: {e}"
+                            update = {
+                                "phase": "tool_result",
+                                "tool": tc_name,
+                                "result": error_msg,
+                            }
+                            await self.broadcast(update)
+                            return {
+                                "role": "tool",
+                                "tool_call_id": tc_id,
+                                "content": error_msg,
+                                "tool_name": tc_name,
+                                "error": True
+                            }
+
+                    # Execute all tool calls in parallel
+                    tool_results = await asyncio.gather(
+                        *[execute_tool_call(tc) for tc in response.tool_calls]
+                    )
+
+                    # Append results to messages in order
+                    for res in tool_results:
+                        self._messages.append({
+                            "role": res["role"],
+                            "tool_call_id": res["tool_call_id"],
+                            "content": res["content"]
+                        })
+
+                        # Special handling for finish signals in bundles
+                        if res.get("tool_name") == "finish" and not res.get("error"):
+                            final_report = res["content"]
+                            # Check tokens for finish
+                            if (
+                                hasattr(self.pool, "finish_tokens")
+                                and self.pool.finish_tokens > 0
+                            ):
+                                update = {
+                                    "phase": "tokens",
+                                    "tokens": self.pool.finish_tokens,
                                 }
-                            )
+                                await self.broadcast(update)
+                                self.pool.finish_tokens = 0
 
                     if final_report:
                         break
