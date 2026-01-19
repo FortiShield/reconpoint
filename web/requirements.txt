@@ -1,6 +1,6 @@
 # Django & Web Framework
-Django==3.2.23
-djangorestframework==3.12.4
+Django==4.2.27
+djangorestframework==3.15.2
 djangorestframework-datatables==0.6.0
 django-ace==1.0.11
 django-celery-beat==2.6.0
@@ -25,10 +25,10 @@ redis==5.0.3
 
 # AI/ML & LLM
 langchain==0.2.13
-langchain-community==0.2.12
+langchain-community==0.3.27
 langchain-openai
 openai
-scikit-learn==1.3.0
+scikit-learn==1.5.0
 
 # Data Processing & Parsing
 beautifulsoup4==4.9.3
@@ -46,7 +46,7 @@ neo4j==5.18.0
 netaddr==0.8.0
 netlas==0.5.1
 PySocks==1.7.1
-scapy==2.4.3
+scapy==2.7.0rc1
 tldextract==3.5.0
 validators==0.18.2
 wafw00f==2.2.0
@@ -58,7 +58,7 @@ argh==0.26.2
 gevent==24.2.1
 humanize==4.3.0
 metafinder==1.2
-requests==2.31.0
+requests==2.32.4
 uro==1.0.0
 watchdog==4.0.0
 whatportis
