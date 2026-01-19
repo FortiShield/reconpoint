@@ -55,7 +55,7 @@ pycvesearch==1.0
 # Utilities
 aiodns==3.0.0
 argh==0.26.2
-gevent==24.2.1
+gevent==25.9.1
 humanize==4.3.0
 metafinder==1.2
 requests==2.31.0
