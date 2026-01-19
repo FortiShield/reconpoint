@@ -24,7 +24,7 @@ celery==5.4.0
 redis==5.0.3
 
 # AI/ML & LLM
-langchain==0.2.13
+langchain==1.2.6
 langchain-community==0.2.12
 langchain-openai
 openai
