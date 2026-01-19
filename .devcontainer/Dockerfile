@@ -78,66 +78,38 @@ RUN groupadd -r app && useradd -r -g app app
 # Set working directory
 WORKDIR /workspaces/reconpoint
 
-# Install Python dev/debugging tools
-RUN pip install --no-cache-dir \
-    # Core dev tools
-    ipython \
-    ipdb \
-    pdbpp \
-    \
-    # Testing & coverage
-    pytest \
-    pytest-django \
-    pytest-cov \
-    pytest-xdist \
-    factory-boy \
-    faker \
-    \
-    # Code quality & formatting
-    black \
-    isort \
-    flake8 \
-    flake8-bugbear \
-    mypy \
-    django-stubs \
-    djangorestframework-stubs \
-    \
-    # Django extensions
-    django-debug-toolbar \
-    django-extensions \
-    django-querycount \
-    \
-    # Pre-commit
-    pre-commit \
-    \
-    # Performance profiling
-    django-silk \
-    line-profiler \
-    memory-profiler \
-    \
-    # API documentation & testing
-    drf-spectacular \
-    \
-    # Environment management
-    python-dotenv
-
 # Copy requirements early for layer caching
 COPY web/requirements.txt /tmp/requirements.txt
 
-# Install project dependencies
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
-
-# Install additional security scanning for development
+# Install all Python dependencies in a single layer to optimize build cache
 RUN pip install --no-cache-dir \
-    bandit \
-    safety
+    # Project dependencies first
+    -r /tmp/requirements.txt \
+    # Core dev tools
+    ipython ipdb pdbpp \
+    # Testing & coverage
+    pytest pytest-django pytest-cov pytest-xdist factory-boy faker \
+    # Code quality & formatting (skip duplicates already in requirements.txt)
+    flake8-bugbear mypy django-stubs djangorestframework-stubs \
+    # Django extensions
+    django-debug-toolbar django-extensions django-querycount \
+    # Pre-commit
+    pre-commit \
+    # Performance profiling
+    django-silk line-profiler memory-profiler \
+    # API documentation & testing
+    drf-spectacular \
+    # Environment management
+    python-dotenv \
+    # Security scanning
+    bandit safety
 
-# Setup supervisord for managing services (optional)
-RUN mkdir -p /var/log/supervisor
+# Setup supervisord and git config in single layer
+RUN mkdir -p /var/log/supervisor && \
+    git config --global --add safe.directory /workspaces/reconpoint
+
+# Copy supervisord config
 COPY .devcontainer/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Configure git (needed for pre-commit)
-RUN git config --global --add safe.directory /workspaces/reconpoint
 
 # Change ownership to non-root user
 RUN chown -R app:app /workspaces
