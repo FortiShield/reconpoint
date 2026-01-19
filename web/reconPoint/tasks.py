@@ -4109,9 +4109,10 @@ def run_command(
     Args:
             cmd (str): Command to run.
             cwd (str): Current working directory.
-            echo (bool): Log command.
             shell (bool): Run within separate shell if True.
             history_file (str): Write command + output to history file.
+            scan_id (int): Scan history ID for tracking.
+            activity_id (int): Activity ID for tracking.
             remove_ansi_sequence (bool): Used to remove ANSI escape sequences from output such as color coding
     Returns:
             tuple: Tuple with return_code, output.
